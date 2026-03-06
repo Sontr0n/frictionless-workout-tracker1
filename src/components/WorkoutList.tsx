@@ -56,7 +56,14 @@ export default function WorkoutList({ workouts, onDelete }: WorkoutListProps) {
               <h4 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">Exercises</h4>
               {workout.exercises.map((ex, idx) => (
                 <div key={idx} className="flex items-center justify-between p-3 bg-zinc-50/50 rounded-[10px] border border-zinc-200">
-                  <span className="font-medium text-zinc-900">{ex.name}</span>
+                  <div className="flex items-center space-x-3">
+                    <span className="font-medium text-zinc-900">{ex.name}</span>
+                    {ex.muscleGroup && (
+                      <span className="text-xs font-medium px-2 py-1 bg-zinc-200 text-zinc-700 rounded-[6px]">
+                        {ex.muscleGroup}
+                      </span>
+                    )}
+                  </div>
                   <div className="flex items-center space-x-4 text-sm text-zinc-500">
                     <span className="w-16 text-right">{ex.sets} sets</span>
                     <span className="text-zinc-300">×</span>

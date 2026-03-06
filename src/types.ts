@@ -2,6 +2,7 @@ export interface Exercise {
   id?: number;
   workout_id?: number;
   name: string;
+  muscleGroup?: string;
   sets: number;
   reps: number;
   weight: number;

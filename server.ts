@@ -19,6 +19,7 @@ db.exec(`
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     workout_id INTEGER NOT NULL,
     name TEXT NOT NULL,
+    muscle_group TEXT,
     sets INTEGER NOT NULL,
     reps INTEGER NOT NULL,
     weight REAL NOT NULL,
@@ -40,7 +41,10 @@ async function startServer() {
 
       const workoutsWithExercises = workouts.map((workout: any) => ({
         ...workout,
-        exercises: exercises.filter((ex: any) => ex.workout_id === workout.id),
+        exercises: exercises.filter((ex: any) => ex.workout_id === workout.id).map((ex: any) => ({
+          ...ex,
+          muscleGroup: ex.muscle_group
+        })),
       }));
 
       res.json(workoutsWithExercises);
@@ -56,7 +60,7 @@ async function startServer() {
     try {
       const insertWorkout = db.prepare("INSERT INTO workouts (date, notes) VALUES (?, ?)");
       const insertExercise = db.prepare(
-        "INSERT INTO exercises (workout_id, name, sets, reps, weight) VALUES (?, ?, ?, ?, ?)"
+        "INSERT INTO exercises (workout_id, name, muscle_group, sets, reps, weight) VALUES (?, ?, ?, ?, ?, ?)"
       );
 
       const transaction = db.transaction(() => {
@@ -64,7 +68,7 @@ async function startServer() {
         const workoutId = info.lastInsertRowid;
 
         for (const ex of exercises) {
-          insertExercise.run(workoutId, ex.name, ex.sets, ex.reps, ex.weight);
+          insertExercise.run(workoutId, ex.name, ex.muscleGroup || null, ex.sets, ex.reps, ex.weight);
         }
         return workoutId;
       });

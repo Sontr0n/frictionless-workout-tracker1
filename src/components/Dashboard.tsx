@@ -67,9 +67,12 @@ History: ${JSON.stringify(history)}`,
   const exercisesByName = workouts.reduce((acc, workout) => {
     workout.exercises.forEach(ex => {
       if (!acc[ex.name]) {
-        acc[ex.name] = [];
+        acc[ex.name] = {
+          muscleGroup: ex.muscleGroup || 'Unknown',
+          history: []
+        };
       }
-      acc[ex.name].push({
+      acc[ex.name].history.push({
         date: workout.date,
         sets: ex.sets,
         reps: ex.reps,
@@ -77,7 +80,16 @@ History: ${JSON.stringify(history)}`,
       });
     });
     return acc;
-  }, {} as Record<string, { date: string, sets: number, reps: number, weight: number }[]>);
+  }, {} as Record<string, { muscleGroup: string, history: { date: string, sets: number, reps: number, weight: number }[] }>);
+
+  // Calculate sets per muscle group
+  const muscleGroupSets = workouts.reduce((acc, workout) => {
+    workout.exercises.forEach(ex => {
+      const group = ex.muscleGroup || 'Unknown';
+      acc[group] = (acc[group] || 0) + ex.sets;
+    });
+    return acc;
+  }, {} as Record<string, number>);
 
   const toggleExercise = (name: string) => {
     setExpandedExercise(prev => prev === name ? null : name);
@@ -178,19 +190,42 @@ History: ${JSON.stringify(history)}`,
         </div>
       </div>
 
+      {/* Muscle Group Stats */}
+      <div className="bg-white rounded-[10px] p-6 border border-zinc-200 shadow-sm">
+        <h3 className="text-lg font-semibold text-zinc-900 mb-6">Sets per Muscle Group</h3>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+          {Object.entries(muscleGroupSets)
+            .sort(([, a], [, b]) => b - a)
+            .map(([group, sets]) => (
+            <div key={group} className="bg-zinc-50 rounded-[10px] p-4 border border-zinc-100 flex flex-col items-center justify-center text-center">
+              <span className="text-sm font-medium text-zinc-500 uppercase tracking-wider mb-1">{group}</span>
+              <span className="text-2xl font-bold text-zinc-900">{sets}</span>
+              <span className="text-xs text-zinc-400">sets</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* Exercises Accordion */}
       <div className="bg-white rounded-[10px] p-6 border border-zinc-200 shadow-sm">
         <h3 className="text-lg font-semibold text-zinc-900 mb-6">Completed Exercises</h3>
         <div className="space-y-3">
-          {Object.entries(exercisesByName).map(([name, history]) => (
+          {Object.entries(exercisesByName).map(([name, data]) => (
             <div key={name} className="border border-zinc-200 rounded-[10px] overflow-hidden">
               <button
                 onClick={() => toggleExercise(name)}
                 className="w-full flex items-center justify-between p-4 bg-zinc-50 hover:bg-zinc-100 transition-colors text-left"
               >
-                <span className="font-medium text-zinc-900">{name}</span>
+                <div className="flex items-center space-x-3">
+                  <span className="font-medium text-zinc-900">{name}</span>
+                  {data.muscleGroup !== 'Unknown' && (
+                    <span className="text-xs font-medium px-2 py-1 bg-zinc-200 text-zinc-700 rounded-[6px]">
+                      {data.muscleGroup}
+                    </span>
+                  )}
+                </div>
                 <div className="flex items-center space-x-4">
-                  <span className="text-sm text-zinc-500">{history.length} sessions</span>
+                  <span className="text-sm text-zinc-500">{data.history.length} sessions</span>
                   {expandedExercise === name ? (
                     <ChevronUp className="w-5 h-5 text-zinc-400" />
                   ) : (
@@ -202,7 +237,7 @@ History: ${JSON.stringify(history)}`,
               {expandedExercise === name && (
                 <div className="p-4 bg-white border-t border-zinc-200">
                   <div className="space-y-2">
-                    {history.map((session, idx) => (
+                    {data.history.map((session, idx) => (
                       <div key={idx} className="flex items-center justify-between py-2 border-b border-zinc-100 last:border-0">
                         <span className="text-sm text-zinc-500">
                           {format(parseISO(session.date), 'MMM d, yyyy')}

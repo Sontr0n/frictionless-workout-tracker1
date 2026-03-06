@@ -103,6 +103,8 @@ export default function VoiceRecorder({ onWorkoutSaved }: VoiceRecorderProps) {
       const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
         contents: `Parse the following workout transcript into a structured JSON format. 
+Capitalize the first letter of each word in the exercise name (e.g. "Bench Press", "Squat").
+Identify the primary muscle group worked by each exercise (e.g. "Chest", "Legs", "Back", "Shoulders", "Arms", "Core").
 Transcript: "${text}"`,
         config: {
           responseMimeType: "application/json",
@@ -118,12 +120,13 @@ Transcript: "${text}"`,
                 items: {
                   type: Type.OBJECT,
                   properties: {
-                    name: { type: Type.STRING, description: "Name of the exercise" },
+                    name: { type: Type.STRING, description: "Name of the exercise, capitalized" },
+                    muscleGroup: { type: Type.STRING, description: "Primary muscle group worked" },
                     sets: { type: Type.INTEGER, description: "Number of sets" },
                     reps: { type: Type.INTEGER, description: "Number of reps per set" },
                     weight: { type: Type.NUMBER, description: "Weight used in lbs or kg" },
                   },
-                  required: ["name", "sets", "reps", "weight"],
+                  required: ["name", "muscleGroup", "sets", "reps", "weight"],
                 },
               },
             },
@@ -229,7 +232,14 @@ Transcript: "${text}"`,
             <div className="p-4 space-y-3">
               {workoutExercises.map((ex, idx) => (
                 <div key={idx} className="flex items-center justify-between p-3 bg-zinc-50 rounded-[10px]">
-                  <span className="font-medium text-zinc-900">{ex.name}</span>
+                  <div className="flex items-center space-x-3">
+                    <span className="font-medium text-zinc-900">{ex.name}</span>
+                    {ex.muscleGroup && (
+                      <span className="text-xs font-medium px-2 py-1 bg-zinc-200 text-zinc-700 rounded-[6px]">
+                        {ex.muscleGroup}
+                      </span>
+                    )}
+                  </div>
                   <div className="flex items-center space-x-4 text-sm text-zinc-500">
                     <span>{ex.sets} sets</span>
                     <span>×</span>
