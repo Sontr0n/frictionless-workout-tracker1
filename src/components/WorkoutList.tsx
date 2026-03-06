@@ -24,10 +24,10 @@ export default function WorkoutList({ workouts, onDelete }: WorkoutListProps) {
       
       <div className="grid gap-6">
         {workouts.map((workout) => (
-          <div key={workout.id} className="bg-white rounded-3xl p-6 shadow-sm border border-zinc-100 transition-all hover:shadow-md">
+          <div key={workout.id} className="bg-white rounded-[10px] p-6 shadow-sm border border-zinc-200 transition-all hover:shadow-md">
             <div className="flex justify-between items-start mb-6">
               <div className="flex items-center space-x-3 text-zinc-500">
-                <div className="p-3 bg-zinc-50 rounded-2xl text-zinc-900">
+                <div className="p-3 bg-zinc-50 rounded-[10px] text-zinc-900">
                   <Calendar className="w-6 h-6" />
                 </div>
                 <div>
@@ -47,7 +47,7 @@ export default function WorkoutList({ workouts, onDelete }: WorkoutListProps) {
             </div>
 
             {workout.notes && (
-              <div className="mb-6 p-4 bg-zinc-50 rounded-2xl">
+              <div className="mb-6 p-4 bg-zinc-50 rounded-[10px]">
                 <p className="text-sm text-zinc-600 italic">"{workout.notes}"</p>
               </div>
             )}
@@ -55,13 +55,13 @@ export default function WorkoutList({ workouts, onDelete }: WorkoutListProps) {
             <div className="space-y-3">
               <h4 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">Exercises</h4>
               {workout.exercises.map((ex, idx) => (
-                <div key={idx} className="flex items-center justify-between p-3 bg-zinc-50/50 rounded-xl border border-zinc-100">
+                <div key={idx} className="flex items-center justify-between p-3 bg-zinc-50/50 rounded-[10px] border border-zinc-200">
                   <span className="font-medium text-zinc-900">{ex.name}</span>
                   <div className="flex items-center space-x-4 text-sm text-zinc-500">
                     <span className="w-16 text-right">{ex.sets} sets</span>
                     <span className="text-zinc-300">×</span>
                     <span className="w-16">{ex.reps} reps</span>
-                    <span className="font-medium text-zinc-900 bg-white px-3 py-1 rounded-lg shadow-sm border border-zinc-100 min-w-[4rem] text-center">
+                    <span className="font-medium text-zinc-900 bg-white px-3 py-1 rounded-[6px] shadow-sm border border-zinc-200 min-w-[4rem] text-center">
                       {ex.weight} lbs
                     </span>
                   </div>

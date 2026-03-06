@@ -93,7 +93,7 @@ export default function App() {
         <div className="max-w-md mx-auto flex justify-around p-2">
           <button
             onClick={() => setActiveTab('dashboard')}
-            className={`flex flex-col items-center p-3 rounded-2xl transition-colors ${
+            className={`flex flex-col items-center p-3 rounded-[10px] transition-colors ${
               activeTab === 'dashboard' ? 'text-zinc-900 bg-zinc-100' : 'text-zinc-400 hover:text-zinc-600'
             }`}
           >
@@ -117,7 +117,7 @@ export default function App() {
 
           <button
             onClick={() => setActiveTab('history')}
-            className={`flex flex-col items-center p-3 rounded-2xl transition-colors ${
+            className={`flex flex-col items-center p-3 rounded-[10px] transition-colors ${
               activeTab === 'history' ? 'text-zinc-900 bg-zinc-100' : 'text-zinc-400 hover:text-zinc-600'
             }`}
           >

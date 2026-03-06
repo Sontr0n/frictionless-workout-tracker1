@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { format, parseISO } from 'date-fns';
-import { Sparkles, TrendingUp, Activity, Dumbbell } from 'lucide-react';
+import { Sparkles, TrendingUp, Activity, Dumbbell, ChevronDown, ChevronUp } from 'lucide-react';
 import { Workout } from '../types';
 import { GoogleGenAI } from "@google/genai";
 
@@ -12,6 +12,7 @@ interface DashboardProps {
 export default function Dashboard({ workouts }: DashboardProps) {
   const [recommendation, setRecommendation] = useState<string | null>(null);
   const [isLoadingRec, setIsLoadingRec] = useState(false);
+  const [expandedExercise, setExpandedExercise] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchRecommendation = async () => {
@@ -62,6 +63,26 @@ History: ${JSON.stringify(history)}`,
     return acc + w.exercises.reduce((accEx, ex) => accEx + (ex.sets * ex.reps * ex.weight), 0);
   }, 0);
 
+  // Group exercises by name
+  const exercisesByName = workouts.reduce((acc, workout) => {
+    workout.exercises.forEach(ex => {
+      if (!acc[ex.name]) {
+        acc[ex.name] = [];
+      }
+      acc[ex.name].push({
+        date: workout.date,
+        sets: ex.sets,
+        reps: ex.reps,
+        weight: ex.weight
+      });
+    });
+    return acc;
+  }, {} as Record<string, { date: string, sets: number, reps: number, weight: number }[]>);
+
+  const toggleExercise = (name: string) => {
+    setExpandedExercise(prev => prev === name ? null : name);
+  };
+
   if (workouts.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-64 text-zinc-500 space-y-4">
@@ -72,9 +93,9 @@ History: ${JSON.stringify(history)}`,
   }
 
   return (
-    <div className="space-y-8 w-full max-w-4xl mx-auto p-6">
+    <div className="space-y-8 w-full max-w-4xl mx-auto p-6 font-sans bg-white">
       {/* AI Recommendation Card */}
-      <div className="bg-gradient-to-br from-zinc-900 to-zinc-800 rounded-3xl p-6 text-white shadow-xl relative overflow-hidden">
+      <div className="bg-gradient-to-br from-zinc-900 to-zinc-800 rounded-[10px] p-6 text-white shadow-sm relative overflow-hidden border border-zinc-200">
         <div className="absolute top-0 right-0 p-6 opacity-10">
           <Sparkles className="w-24 h-24" />
         </div>
@@ -100,8 +121,8 @@ History: ${JSON.stringify(history)}`,
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="bg-white rounded-3xl p-6 border border-zinc-100 shadow-sm flex items-center space-x-4">
-          <div className="p-4 bg-emerald-50 text-emerald-600 rounded-2xl">
+        <div className="bg-white rounded-[10px] p-6 border border-zinc-200 shadow-sm flex items-center space-x-4">
+          <div className="p-4 bg-emerald-50 text-emerald-600 rounded-[10px]">
             <Activity className="w-8 h-8" />
           </div>
           <div>
@@ -109,8 +130,8 @@ History: ${JSON.stringify(history)}`,
             <p className="text-3xl font-bold text-zinc-900">{totalWorkouts}</p>
           </div>
         </div>
-        <div className="bg-white rounded-3xl p-6 border border-zinc-100 shadow-sm flex items-center space-x-4">
-          <div className="p-4 bg-blue-50 text-blue-600 rounded-2xl">
+        <div className="bg-white rounded-[10px] p-6 border border-zinc-200 shadow-sm flex items-center space-x-4">
+          <div className="p-4 bg-blue-50 text-blue-600 rounded-[10px]">
             <TrendingUp className="w-8 h-8" />
           </div>
           <div>
@@ -121,7 +142,7 @@ History: ${JSON.stringify(history)}`,
       </div>
 
       {/* Chart */}
-      <div className="bg-white rounded-3xl p-6 border border-zinc-100 shadow-sm">
+      <div className="bg-white rounded-[10px] p-6 border border-zinc-200 shadow-sm">
         <h3 className="text-lg font-semibold text-zinc-900 mb-6">Volume Trend (Last 7 Workouts)</h3>
         <div className="h-64 w-full">
           <ResponsiveContainer width="100%" height="100%">
@@ -141,19 +162,66 @@ History: ${JSON.stringify(history)}`,
                 tickFormatter={(value) => `${value / 1000}k`}
               />
               <Tooltip 
-                contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                contentStyle={{ borderRadius: '10px', border: '1px solid #e4e4e7', boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)' }}
                 formatter={(value: number) => [`${value.toLocaleString()} lbs`, 'Volume']}
               />
               <Line 
                 type="monotone" 
                 dataKey="volume" 
                 stroke="#18181b" 
-                strokeWidth={3}
+                strokeWidth={2}
                 dot={{ r: 4, fill: '#18181b', strokeWidth: 0 }}
                 activeDot={{ r: 6, fill: '#10b981', strokeWidth: 0 }}
               />
             </LineChart>
           </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Exercises Accordion */}
+      <div className="bg-white rounded-[10px] p-6 border border-zinc-200 shadow-sm">
+        <h3 className="text-lg font-semibold text-zinc-900 mb-6">Completed Exercises</h3>
+        <div className="space-y-3">
+          {Object.entries(exercisesByName).map(([name, history]) => (
+            <div key={name} className="border border-zinc-200 rounded-[10px] overflow-hidden">
+              <button
+                onClick={() => toggleExercise(name)}
+                className="w-full flex items-center justify-between p-4 bg-zinc-50 hover:bg-zinc-100 transition-colors text-left"
+              >
+                <span className="font-medium text-zinc-900">{name}</span>
+                <div className="flex items-center space-x-4">
+                  <span className="text-sm text-zinc-500">{history.length} sessions</span>
+                  {expandedExercise === name ? (
+                    <ChevronUp className="w-5 h-5 text-zinc-400" />
+                  ) : (
+                    <ChevronDown className="w-5 h-5 text-zinc-400" />
+                  )}
+                </div>
+              </button>
+              
+              {expandedExercise === name && (
+                <div className="p-4 bg-white border-t border-zinc-200">
+                  <div className="space-y-2">
+                    {history.map((session, idx) => (
+                      <div key={idx} className="flex items-center justify-between py-2 border-b border-zinc-100 last:border-0">
+                        <span className="text-sm text-zinc-500">
+                          {format(parseISO(session.date), 'MMM d, yyyy')}
+                        </span>
+                        <div className="flex items-center space-x-3 text-sm">
+                          <span className="text-zinc-600">{session.sets} sets</span>
+                          <span className="text-zinc-300">×</span>
+                          <span className="text-zinc-600">{session.reps} reps</span>
+                          <span className="font-medium text-zinc-900 bg-zinc-100 px-2 py-1 rounded-[6px]">
+                            {session.weight} lbs
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
         </div>
       </div>
     </div>

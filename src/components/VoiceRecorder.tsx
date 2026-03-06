@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Mic, Square, Loader2, CheckCircle2, XCircle, Save, Keyboard, Send } from 'lucide-react';
+import { Mic, Square, Loader2, CheckCircle2, XCircle, Save, Keyboard, Send, Plus, Play } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Exercise } from '../types';
 import { GoogleGenAI, Type } from "@google/genai";
@@ -9,12 +9,15 @@ interface VoiceRecorderProps {
 }
 
 export default function VoiceRecorder({ onWorkoutSaved }: VoiceRecorderProps) {
+  const [isWorkoutActive, setIsWorkoutActive] = useState(false);
+  const [workoutExercises, setWorkoutExercises] = useState<Exercise[]>([]);
+  const [workoutNotes, setWorkoutNotes] = useState<string[]>([]);
+  
   const [isRecording, setIsRecording] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [manualInput, setManualInput] = useState('');
   const [isManualMode, setIsManualMode] = useState(false);
   const [isParsing, setIsParsing] = useState(false);
-  const [parsedData, setParsedData] = useState<{ notes?: string; exercises: Exercise[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const recognitionRef = useRef<any>(null);
 
@@ -59,6 +62,13 @@ export default function VoiceRecorder({ onWorkoutSaved }: VoiceRecorderProps) {
     };
   }, [isRecording]);
 
+  const startWorkout = () => {
+    setIsWorkoutActive(true);
+    setWorkoutExercises([]);
+    setWorkoutNotes([]);
+    setError(null);
+  };
+
   const toggleRecording = () => {
     if (isRecording) {
       setIsRecording(false);
@@ -68,7 +78,6 @@ export default function VoiceRecorder({ onWorkoutSaved }: VoiceRecorderProps) {
       }
     } else {
       setTranscript('');
-      setParsedData(null);
       setError(null);
       setIsRecording(true);
       try {
@@ -124,7 +133,16 @@ Transcript: "${text}"`,
       });
 
       const data = JSON.parse(response.text || "{}");
-      setParsedData(data);
+      
+      if (data.exercises && data.exercises.length > 0) {
+        setWorkoutExercises(prev => [...prev, ...data.exercises]);
+      }
+      if (data.notes) {
+        setWorkoutNotes(prev => [...prev, data.notes]);
+      }
+      
+      setTranscript('');
+      setManualInput('');
     } catch (err: any) {
       console.error(err);
       setError(err.message || 'Failed to analyze workout data. Please try again or edit manually.');
@@ -133,8 +151,11 @@ Transcript: "${text}"`,
     }
   };
 
-  const saveWorkout = async () => {
-    if (!parsedData) return;
+  const endAndSaveWorkout = async () => {
+    if (workoutExercises.length === 0) {
+      setIsWorkoutActive(false);
+      return;
+    }
 
     try {
       const response = await fetch('/api/workouts', {
@@ -142,14 +163,16 @@ Transcript: "${text}"`,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           date: new Date().toISOString(),
-          notes: parsedData.notes || '',
-          exercises: parsedData.exercises,
+          notes: workoutNotes.join(' | '),
+          exercises: workoutExercises,
         }),
       });
 
       if (!response.ok) throw new Error('Failed to save workout');
 
-      setParsedData(null);
+      setIsWorkoutActive(false);
+      setWorkoutExercises([]);
+      setWorkoutNotes([]);
       setTranscript('');
       setManualInput('');
       onWorkoutSaved();
@@ -158,152 +181,164 @@ Transcript: "${text}"`,
     }
   };
 
+  if (!isWorkoutActive) {
+    return (
+      <div className="flex flex-col items-center justify-center space-y-8 w-full max-w-2xl mx-auto p-6 min-h-[60vh]">
+        <div className="text-center space-y-4">
+          <div className="w-20 h-20 bg-zinc-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <Play className="w-10 h-10 text-zinc-900 ml-2" />
+          </div>
+          <h2 className="text-3xl font-bold text-zinc-900">Ready to train?</h2>
+          <p className="text-zinc-500 max-w-sm mx-auto">
+            Start a new session to record your exercises cumulatively. You can add multiple exercises via voice or text as you go.
+          </p>
+        </div>
+        <button
+          onClick={startWorkout}
+          className="bg-zinc-900 text-white px-8 py-4 rounded-full font-semibold text-lg hover:bg-zinc-800 transition-all hover:scale-105 shadow-lg flex items-center space-x-2"
+        >
+          <Play className="w-5 h-5 fill-current" />
+          <span>Start Workout</span>
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col items-center justify-center space-y-8 w-full max-w-2xl mx-auto p-6">
-      <div className="text-center space-y-2">
-        <h2 className="text-2xl font-semibold text-zinc-900">Record Workout</h2>
-        <p className="text-zinc-500">
-          {isManualMode ? 'Describe your workout below.' : 'Tap the mic and describe your workout naturally.'}
-          <br />
-          <span className="text-sm italic">"I did 3 sets of bench press for 10 reps at 135 lbs..."</span>
-        </p>
+    <div className="flex flex-col items-center justify-start space-y-8 w-full max-w-2xl mx-auto p-6 pb-24">
+      <div className="w-full flex justify-between items-center bg-white p-4 rounded-[10px] shadow-sm border border-zinc-200 sticky top-4 z-10">
+        <div className="flex items-center space-x-2">
+          <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse" />
+          <span className="font-semibold text-zinc-900">Workout in Progress</span>
+        </div>
+        <button
+          onClick={endAndSaveWorkout}
+          className="flex items-center space-x-2 bg-emerald-600 text-white px-4 py-2 rounded-[10px] text-sm font-medium hover:bg-emerald-700 transition-colors"
+        >
+          <Save className="w-4 h-4" />
+          <span>End & Save</span>
+        </button>
       </div>
 
-      {!isManualMode ? (
-        <div className="flex flex-col items-center space-y-6">
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={toggleRecording}
-            className={`relative flex items-center justify-center w-32 h-32 rounded-full shadow-xl transition-colors ${
-              isRecording ? 'bg-red-500 hover:bg-red-600' : 'bg-zinc-900 hover:bg-zinc-800'
-            }`}
-          >
-            {isRecording && (
-              <motion.div
-                animate={{ scale: [1, 1.2, 1] }}
-                transition={{ repeat: Infinity, duration: 1.5 }}
-                className="absolute inset-0 rounded-full border-4 border-red-500 opacity-30"
-              />
-            )}
-            {isRecording ? (
-              <Square className="w-12 h-12 text-white fill-current" />
-            ) : (
-              <Mic className="w-12 h-12 text-white" />
-            )}
-          </motion.button>
-          <button 
-            onClick={() => setIsManualMode(true)}
-            className="flex items-center space-x-2 text-sm text-zinc-500 hover:text-zinc-900 transition-colors"
-          >
-            <Keyboard className="w-4 h-4" />
-            <span>Switch to typing</span>
-          </button>
-        </div>
-      ) : (
-        <form onSubmit={handleManualSubmit} className="w-full space-y-4">
-          <textarea
-            value={manualInput}
-            onChange={(e) => setManualInput(e.target.value)}
-            placeholder="e.g., 3 sets of squats, 10 reps at 225 lbs..."
-            className="w-full h-32 p-4 rounded-2xl border border-zinc-200 bg-zinc-50 focus:bg-white focus:ring-2 focus:ring-zinc-900 focus:border-transparent transition-all resize-none"
-          />
-          <div className="flex justify-between items-center">
-            <button
-              type="button"
-              onClick={() => setIsManualMode(false)}
-              className="text-sm text-zinc-500 hover:text-zinc-900 transition-colors"
-            >
-              Back to voice
-            </button>
-            <button
-              type="submit"
-              disabled={!manualInput.trim() || isParsing}
-              className="flex items-center space-x-2 bg-zinc-900 text-white px-6 py-3 rounded-full font-medium hover:bg-zinc-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isParsing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
-              <span>Analyze</span>
-            </button>
-          </div>
-        </form>
-      )}
-
-      {isRecording && (
-        <div className="flex items-center space-x-2 text-red-500 font-medium animate-pulse">
-          <div className="w-2 h-2 rounded-full bg-red-500" />
-          <span>Recording...</span>
-        </div>
-      )}
-
-      {transcript && !parsedData && !isParsing && !isManualMode && (
-        <div className="w-full p-4 bg-zinc-50 rounded-2xl border border-zinc-200">
-          <p className="text-zinc-700 italic">"{transcript}"</p>
-        </div>
-      )}
-
-      {isParsing && !isManualMode && (
-        <div className="flex flex-col items-center space-y-4 text-zinc-500">
-          <Loader2 className="w-8 h-8 animate-spin text-zinc-900" />
-          <p>Analyzing your workout...</p>
-        </div>
-      )}
-
-      {error && (
-        <div className="flex items-center space-x-2 text-red-600 bg-red-50 p-4 rounded-xl w-full">
-          <XCircle className="w-5 h-5 flex-shrink-0" />
-          <p>{error}</p>
-        </div>
-      )}
-
-      {parsedData && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="w-full bg-white rounded-3xl shadow-sm border border-zinc-200 overflow-hidden"
-        >
-          <div className="p-6 border-b border-zinc-100 bg-zinc-50/50 flex justify-between items-center">
-            <div className="flex items-center space-x-2 text-emerald-600">
-              <CheckCircle2 className="w-5 h-5" />
-              <span className="font-medium">Workout Parsed</span>
+      <div className="w-full space-y-6">
+        {workoutExercises.length > 0 && (
+          <div className="bg-white rounded-[10px] shadow-sm border border-zinc-200 overflow-hidden">
+            <div className="p-4 border-b border-zinc-100 bg-zinc-50/50">
+              <h3 className="font-semibold text-zinc-900">Current Session</h3>
             </div>
-            <button
-              onClick={saveWorkout}
-              className="flex items-center space-x-2 bg-zinc-900 text-white px-4 py-2 rounded-full text-sm font-medium hover:bg-zinc-800 transition-colors"
-            >
-              <Save className="w-4 h-4" />
-              <span>Save Workout</span>
-            </button>
-          </div>
-          
-          <div className="p-6 space-y-6">
-            {parsedData.notes && (
-              <div>
-                <h4 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">Notes</h4>
-                <p className="text-zinc-700 text-sm">{parsedData.notes}</p>
-              </div>
-            )}
-            
-            <div>
-              <h4 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">Exercises</h4>
-              <div className="space-y-3">
-                {parsedData.exercises.map((ex, idx) => (
-                  <div key={idx} className="flex items-center justify-between p-3 bg-zinc-50 rounded-xl">
-                    <span className="font-medium text-zinc-900">{ex.name}</span>
-                    <div className="flex items-center space-x-4 text-sm text-zinc-500">
-                      <span>{ex.sets} sets</span>
-                      <span>×</span>
-                      <span>{ex.reps} reps</span>
-                      <span className="font-medium text-zinc-900 bg-white px-2 py-1 rounded-md shadow-sm border border-zinc-100">
-                        {ex.weight} lbs
-                      </span>
-                    </div>
+            <div className="p-4 space-y-3">
+              {workoutExercises.map((ex, idx) => (
+                <div key={idx} className="flex items-center justify-between p-3 bg-zinc-50 rounded-[10px]">
+                  <span className="font-medium text-zinc-900">{ex.name}</span>
+                  <div className="flex items-center space-x-4 text-sm text-zinc-500">
+                    <span>{ex.sets} sets</span>
+                    <span>×</span>
+                    <span>{ex.reps} reps</span>
+                    <span className="font-medium text-zinc-900 bg-white px-2 py-1 rounded-[6px] shadow-sm border border-zinc-200">
+                      {ex.weight} lbs
+                    </span>
                   </div>
-                ))}
-              </div>
+                </div>
+              ))}
             </div>
           </div>
-        </motion.div>
-      )}
+        )}
+
+        <div className="bg-white rounded-[10px] shadow-sm border border-zinc-200 p-6 space-y-6">
+          <div className="text-center space-y-2">
+            <h3 className="text-lg font-semibold text-zinc-900">Add Exercise</h3>
+            <p className="text-zinc-500 text-sm">
+              {isManualMode ? 'Type your exercise details below.' : 'Tap the mic and describe your exercise.'}
+            </p>
+          </div>
+
+          {!isManualMode ? (
+            <div className="flex flex-col items-center space-y-6">
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={toggleRecording}
+                className={`relative flex items-center justify-center w-24 h-24 rounded-full shadow-lg transition-colors ${
+                  isRecording ? 'bg-red-500 hover:bg-red-600' : 'bg-zinc-900 hover:bg-zinc-800'
+                }`}
+              >
+                {isRecording && (
+                  <motion.div
+                    animate={{ scale: [1, 1.2, 1] }}
+                    transition={{ repeat: Infinity, duration: 1.5 }}
+                    className="absolute inset-0 rounded-full border-4 border-red-500 opacity-30"
+                  />
+                )}
+                {isRecording ? (
+                  <Square className="w-8 h-8 text-white fill-current" />
+                ) : (
+                  <Mic className="w-8 h-8 text-white" />
+                )}
+              </motion.button>
+              <button 
+                onClick={() => setIsManualMode(true)}
+                className="flex items-center space-x-2 text-sm text-zinc-500 hover:text-zinc-900 transition-colors"
+              >
+                <Keyboard className="w-4 h-4" />
+                <span>Switch to typing</span>
+              </button>
+            </div>
+          ) : (
+            <form onSubmit={handleManualSubmit} className="w-full space-y-4">
+              <textarea
+                value={manualInput}
+                onChange={(e) => setManualInput(e.target.value)}
+                placeholder="e.g., 3 sets of squats, 10 reps at 225 lbs..."
+                className="w-full h-24 p-4 rounded-[10px] border border-zinc-200 bg-zinc-50 focus:bg-white focus:ring-2 focus:ring-zinc-900 focus:border-transparent transition-all resize-none"
+              />
+              <div className="flex justify-between items-center">
+                <button
+                  type="button"
+                  onClick={() => setIsManualMode(false)}
+                  className="text-sm text-zinc-500 hover:text-zinc-900 transition-colors"
+                >
+                  Back to voice
+                </button>
+                <button
+                  type="submit"
+                  disabled={!manualInput.trim() || isParsing}
+                  className="flex items-center space-x-2 bg-zinc-900 text-white px-6 py-2 rounded-[10px] font-medium hover:bg-zinc-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isParsing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                  <span>Add</span>
+                </button>
+              </div>
+            </form>
+          )}
+
+          {isRecording && (
+            <div className="flex items-center justify-center space-x-2 text-red-500 font-medium animate-pulse">
+              <div className="w-2 h-2 rounded-full bg-red-500" />
+              <span>Recording...</span>
+            </div>
+          )}
+
+          {transcript && !isParsing && !isManualMode && (
+            <div className="w-full p-4 bg-zinc-50 rounded-[10px] border border-zinc-200">
+              <p className="text-zinc-700 italic">"{transcript}"</p>
+            </div>
+          )}
+
+          {isParsing && !isManualMode && (
+            <div className="flex flex-col items-center space-y-4 text-zinc-500 py-4">
+              <Loader2 className="w-6 h-6 animate-spin text-zinc-900" />
+              <p className="text-sm">Analyzing...</p>
+            </div>
+          )}
+
+          {error && (
+            <div className="flex items-center space-x-2 text-red-600 bg-red-50 p-4 rounded-[10px] w-full">
+              <XCircle className="w-5 h-5 flex-shrink-0" />
+              <p className="text-sm">{error}</p>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
